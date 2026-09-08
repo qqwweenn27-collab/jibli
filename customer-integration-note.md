@@ -1,0 +1,1 @@
+Next integration step: load customer.css, customer-app.js and customer-live.js from index.html. Existing customer app remains the source of truth for the current deployed shell.
