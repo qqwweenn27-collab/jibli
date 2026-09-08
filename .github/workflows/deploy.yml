@@ -23,23 +23,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Patch and attach customer/admin layers
+      - name: Patch and attach application layers
         run: python - <<'PY'
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           if '<link rel="stylesheet" href="customer.css">' not in s:
               s=s.replace('</head>','<link rel="stylesheet" href="customer.css"></head>')
-          for x in ['<script src="customer-app.js"></script>','<script src="customer-live.js"></script>','<script src="admin.js"></script>','<script src="dashboard.js"></script>']:
+          for x in ['<script src="customer-app.js"></script>','<script src="customer-live.js"></script>','<script src="customer-pro.js"></script>','<script src="admin.js"></script>','<script src="dashboard.js"></script>']:
               if x not in s: s=s.replace('</body>',x+'</body>')
-          old="const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0)+1500;const order={id:'JB-'+Date.now().toString().slice(-7),type:'food',status:'pending',name,phone,address:addr,payment:pay,total,items:[...state.cart],created:new Date().toISOString()};state.orders.unshift(order);state.cart=[];save();await supabaseInsert('food_orders',{user_id:state.user?.id||null,restaurant_id:state.cart?.[0]?.rid||null,status:'pending',total:total,delivery_address:addr,payment_method:pay,notes:'طلب من جيبلي'});"
-          new="const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0)+1500;const restaurantId=state.cart[0]?.rid||null;const order={id:'JB-'+Date.now().toString().slice(-7),type:'food',status:'pending',name,phone,address:addr,payment:pay,total,items:[...state.cart],created:new Date().toISOString()};state.orders.unshift(order);state.cart=[];save();await supabaseInsert('food_orders',{user_id:state.user?.id||null,restaurant_id:restaurantId,status:'pending',total:total,delivery_address:addr,payment_method:pay,notes:'طلب من جيبلي'});"
-          s=s.replace(old,new)
-          old2="state.user={name:name||email.split('@')[0],email,access_token:data.access_token||null};save();"
-          new2="state.user={id:data.user?.id||null,name:name||data.user?.user_metadata?.full_name||email.split('@')[0],email,phone:data.user?.phone||'',access_token:data.access_token||null};save();window.dispatchEvent(new CustomEvent('jibli-auth-ready',{detail:{userId:state.user.id}}));"
-          s=s.replace(old2,new2)
+          # Correct legacy order payloads to the real customer_id schema.
+          s=s.replace("await supabaseInsert('food_orders',{user_id:state.user?.id||null,restaurant_id:state.cart?.[0]?.rid||null,status:'pending',total:total,delivery_address:addr,payment_method:pay,notes:'طلب من جيبلي'});", "await supabaseInsert('food_orders',{customer_id:state.user?.id||null,restaurant_id:restaurantId,status:'pending',total:total,subtotal:total-1500,delivery_fee:1500,delivery_address:addr,notes:'طلب من جيبلي'});")
+          s=s.replace("await supabaseInsert('rides',{user_id:state.user?.id||null,pickup_address:f,dropoff_address:t,status:'requested'});", "await supabaseInsert('rides',{customer_id:state.user?.id||null,pickup_address:f,destination_address:t,status:'requested'});")
+          s=s.replace("state.user={name:name||email.split('@')[0],email,access_token:data.access_token||null};save();", "state.user={id:data.user?.id||null,name:name||data.user?.user_metadata?.full_name||email.split('@')[0],email,phone:data.user?.phone||'',access_token:data.access_token||null};save();localStorage.setItem('jibli_access_token',state.user.access_token||'');window.dispatchEvent(new CustomEvent('jibli-auth-ready',{detail:{userId:state.user.id}}));")
           p.write_text(s,encoding='utf-8')
-          print('customer patch complete')
+          print('customer layer attached')
           PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
