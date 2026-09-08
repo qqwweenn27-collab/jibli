@@ -23,18 +23,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Attach admin enhancements
+      - name: Attach customer and admin layers
         run: python - <<'PY'
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          if 'src="admin.js"' not in s:
-              s=s.replace('</body>','<script src="admin.js"></script></body>')
-              p.write_text(s,encoding='utf-8')
-          print('admin.js attached:', 'src="admin.js"' in s)
+          head=['<link rel="stylesheet" href="customer.css">']
+          body=['<script src="customer-app.js"></script>','<script src="customer-live.js"></script>','<script src="admin.js"></script>','<script src="dashboard.js"></script>']
+          for x in head:
+              if x not in s: s=s.replace('</head>',x+'</head>')
+          for x in body:
+              if x not in s: s=s.replace('</body>',x+'</body>')
+          p.write_text(s,encoding='utf-8')
+          print('customer/admin layers attached')
           PY
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
