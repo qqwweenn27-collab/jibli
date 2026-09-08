@@ -1,0 +1,1 @@
+Customer v2 staged assets: customer.css, customer-app.js, customer-live.js. Integration into index.html remains to be applied.
