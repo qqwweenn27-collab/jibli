@@ -1,0 +1,1 @@
+Customer v2 baseline started: premium UI layer, backend customer hooks, documentation. Existing index.html retained until full integration pass.
