@@ -1,0 +1,1 @@
+Customer release foundation is being integrated into index.html on main. This file is a temporary release note and can be removed later during cleanup.
