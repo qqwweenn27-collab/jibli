@@ -28,21 +28,18 @@ jobs:
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          # Load UI and enhancement layers.
-          for x in ['<link rel="stylesheet" href="customer.css">']:
-              if x not in s: s=s.replace('</head>',x+'</head>')
+          if '<link rel="stylesheet" href="customer.css">' not in s:
+              s=s.replace('</head>','<link rel="stylesheet" href="customer.css"></head>')
           for x in ['<script src="customer-app.js"></script>','<script src="customer-live.js"></script>','<script src="admin.js"></script>','<script src="dashboard.js"></script>']:
               if x not in s: s=s.replace('</body>',x+'</body>')
-          # Correct customer order payloads to match the existing Supabase schema.
-          s=s.replace("await supabaseInsert('food_orders',{status:'pending',total_amount:total,delivery_address:addr,notes:'طلب من نسخة جيبلي الموحدة'});", "await supabaseInsert('food_orders',{user_id:state.user?.id||null,restaurant_id:state.cart?.[0]?.rid||null,status:'pending',total:total,delivery_address:addr,payment_method:pay,notes:'طلب من جيبلي'});")
-          s=s.replace("await supabaseInsert('rides',{pickup_address:f,destination_address:t,status:'requested'});", "await supabaseInsert('rides',{user_id:state.user?.id||null,pickup_address:f,dropoff_address:t,status:'requested'});")
-          # Make the helper return useful diagnostics while remaining safe with the publishable key.
-          s=s.replace("async function supabaseInsert(table,row){try{await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(row)})}catch(e){console.log('supabase offline',e)}}", "async function supabaseInsert(table,row){try{const h={apikey:SB_KEY,Authorization:'Bearer '+(state.user?.access_token||SB_KEY),'Content-Type':'application/json',Prefer:'return=minimal'};const r=await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:h,body:JSON.stringify(row)});if(!r.ok)console.warn('Supabase insert failed',table,await r.text());return r.ok}catch(e){console.warn('supabase offline',e);return false}}")
-          # Keep the Realtime bootstrap informed after authentication.
-          if "jibli-auth-ready" not in s:
-              s=s.replace("toast(mode==='login'?'تم تسجيل الدخول':'تم إنشاء الحساب');go('home')", "toast(mode==='login'?'تم تسجيل الدخول':'تم إنشاء الحساب');window.dispatchEvent(new CustomEvent('jibli-auth-ready',{detail:{userId:state.user?.id||null}}));go('home')")
+          old="const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0)+1500;const order={id:'JB-'+Date.now().toString().slice(-7),type:'food',status:'pending',name,phone,address:addr,payment:pay,total,items:[...state.cart],created:new Date().toISOString()};state.orders.unshift(order);state.cart=[];save();await supabaseInsert('food_orders',{user_id:state.user?.id||null,restaurant_id:state.cart?.[0]?.rid||null,status:'pending',total:total,delivery_address:addr,payment_method:pay,notes:'طلب من جيبلي'});"
+          new="const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0)+1500;const restaurantId=state.cart[0]?.rid||null;const order={id:'JB-'+Date.now().toString().slice(-7),type:'food',status:'pending',name,phone,address:addr,payment:pay,total,items:[...state.cart],created:new Date().toISOString()};state.orders.unshift(order);state.cart=[];save();await supabaseInsert('food_orders',{user_id:state.user?.id||null,restaurant_id:restaurantId,status:'pending',total:total,delivery_address:addr,payment_method:pay,notes:'طلب من جيبلي'});"
+          s=s.replace(old,new)
+          old2="state.user={name:name||email.split('@')[0],email,access_token:data.access_token||null};save();"
+          new2="state.user={id:data.user?.id||null,name:name||data.user?.user_metadata?.full_name||email.split('@')[0],email,phone:data.user?.phone||'',access_token:data.access_token||null};save();window.dispatchEvent(new CustomEvent('jibli-auth-ready',{detail:{userId:state.user.id}}));"
+          s=s.replace(old2,new2)
           p.write_text(s,encoding='utf-8')
-          print('customer/admin integration patch complete')
+          print('customer patch complete')
           PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
